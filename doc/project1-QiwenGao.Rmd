@@ -1,0 +1,198 @@
+---
+title: "What's behind song lyrics?"
+output: html_notebook
+---
+
+```{r echo=FALSE, message=FALSE}
+## library packages
+library(dplyr)
+library(ggplot2)
+library(tm)
+library(wordcloud2)
+library(RColorBrewer)
+library(tidytext)
+library(tidyverse)
+library(syuzhet)
+library(reshape2)
+library(wordcloud)
+```
+```{r echo=FALSE}
+#load the dataset
+load('../output/processed_lyrics.RData') 
+```
+### Preparations for visualization
+```{r}
+lyrics_list <- c("Folk", "R&B", "Electronic", "Jazz", "Indie", "Country", "Rock", "Metal", "Pop", "Hip-Hop", "Other")
+time_list <- c("1970s", "1980s", "1990s", "2000s", "2010s")
+corpus <- VCorpus(VectorSource(dt_lyrics$stemmedwords))
+word_tibble <- tidy(corpus) %>%
+  select(text) %>%
+  mutate(id = row_number()) %>%
+  unnest_tokens(word, text)
+```
+
+### Sentimental Analysis
+```{r echo=FALSE, echo=FALSE}
+#In this part, I used sentimental analysis to see the positive/negative sentiments involving in each kind of genres. 
+mydata<-dt_lyrics
+data.folk <- mydata[mydata$genre == "Folk",]
+sent.folk <- get_nrc_sentiment(as.character(data.folk$stemmedwords))
+sent.folk.n <- data.frame(topic = "Folk", attitude = rep("negative", sum(sent.folk[, 9])))
+sent.folk.p <- data.frame(topic = "Folk", attitude = rep("positive", sum(sent.folk[, 10])))
+sent.folk.np <- rbind(sent.folk.n, sent.folk.p)
+
+data.rb <- mydata[mydata$genre == "R&B",]
+sent.rb <- get_nrc_sentiment(as.character(data.rb$stemmedwords))
+sent.rb.n <- data.frame(topic = "R&B", attitude = rep("negative", sum(sent.rb[, 9])))
+sent.rb.p <- data.frame(topic = "R&B", attitude = rep("positive", sum(sent.rb[, 10])))
+sent.rb.np <- rbind(sent.rb.n, sent.rb.p)
+
+data.elec <- mydata[mydata$genre == "Electronic",]
+sent.elec <- get_nrc_sentiment(as.character(data.elec$stemmedwords))
+sent.elec.n <- data.frame(topic = "Electronic", attitude = rep("negative", sum(sent.elec[, 9])))
+sent.elec.p <- data.frame(topic = "Electronic", attitude = rep("positive", sum(sent.elec[, 10])))
+sent.elec.np <- rbind(sent.elec.n, sent.elec.p)
+
+data.jazz <- mydata[mydata$genre == "Jazz",]
+sent.jazz <- get_nrc_sentiment(as.character(data.jazz$stemmedwords))
+sent.jazz.n <- data.frame(topic = "Jazz", attitude = rep("negative", sum(sent.jazz[, 9])))
+sent.jazz.p <- data.frame(topic = "Jazz", attitude = rep("positive", sum(sent.jazz[, 10])))
+sent.jazz.np <- rbind(sent.jazz.n, sent.jazz.p)
+#################################
+#jazz joy anger
+# sent.jazz.an <- data.frame(topic = "Jazz", attitude = rep("anger", sum(sent.jazz[, 1] >= 1)))
+# sent.jazz.j <- data.frame(topic = "Jazz", attitude = rep("joy", sum(sent.jazz[, 5] >= 1)))
+# sent.jazz.aj <- rbind(sent.jazz.an, sent.jazz.j)
+# 
+# #metal joy anger
+# sent.metal.an <- data.frame(topic = "Metal", attitude = rep("anger", sum(sent.metal[, 1] >= 1)))
+# sent.metal.j <- data.frame(topic = "Metal", attitude = rep("joy", sum(sent.metal[, 5] >= 1)))
+# sent.metal.aj <- rbind(sent.metal.an, sent.metal.j)
+# topic.sentiment2<-rbind(sent.jazz.aj,sent.metal.aj)
+# ggplot(topic.sentiment2, aes(x = topic)) +
+#   geom_bar(aes(fill = factor(attitude)), position = "fill")
+##################################
+data.indie <- mydata[mydata$genre == "Indie",]
+sent.indie <- get_nrc_sentiment(as.character(data.indie$stemmedwords))
+sent.indie.n <- data.frame(topic = "Indie", attitude = rep("negative", sum(sent.indie[, 9])))
+sent.indie.p <- data.frame(topic = "Indie", attitude = rep("positive", sum(sent.indie[, 10])))
+sent.indie.np <- rbind(sent.indie.n, sent.indie.p)
+
+data.country <- mydata[mydata$genre == "Country",]
+sent.country <- get_nrc_sentiment(as.character(data.country$stemmedwords))
+sent.country.n <- data.frame(topic = "Country", attitude = rep("negative", sum(sent.country[, 9])))
+sent.country.p <- data.frame(topic = "Country", attitude = rep("positive", sum(sent.country[, 10])))
+sent.country.np <- rbind(sent.country.n, sent.country.p)
+
+data.rock <- mydata[mydata$genre == "Rock",]
+sent.rock <- get_nrc_sentiment(as.character(data.rock$stemmedwords))
+sent.rock.n <- data.frame(topic = "Rock", attitude = rep("negative", sum(sent.rock[, 9])))
+sent.rock.p <- data.frame(topic = "Rock", attitude = rep("positive", sum(sent.rock[, 10])))
+sent.rock.np <- rbind(sent.rock.n, sent.rock.p)
+
+data.metal <- mydata[mydata$genre == "Metal",]
+sent.metal <- get_nrc_sentiment(as.character(data.metal$stemmedwords))
+sent.metal.n <- data.frame(topic = "Metal", attitude = rep("negative", sum(sent.metal[, 9])))
+sent.metal.p <- data.frame(topic = "Metal", attitude = rep("positive", sum(sent.metal[, 10])))
+sent.metal.np <- rbind(sent.metal.n, sent.metal.p)
+
+data.pop <- mydata[mydata$genre == "Pop",]
+sent.pop <- get_nrc_sentiment(as.character(data.pop$stemmedwords))
+sent.pop.n <- data.frame(topic = "Pop", attitude = rep("negative", sum(sent.pop[, 9])))
+sent.pop.p <- data.frame(topic = "Pop", attitude = rep("positive", sum(sent.pop[, 10])))
+sent.pop.np <- rbind(sent.pop.n, sent.pop.p)
+
+data.hiphop <- mydata[mydata$genre == "Hip-Hop",]
+sent.hiphop <- get_nrc_sentiment(as.character(data.hiphop$stemmedwords))
+sent.hiphop.n <- data.frame(topic = "Hip-Hop", attitude = rep("negative", sum(sent.hiphop[, 9])))
+sent.hiphop.p <- data.frame(topic = "Hip-Hop", attitude = rep("positive", sum(sent.hiphop[, 10])))
+sent.hiphop.np <- rbind(sent.hiphop.n, sent.hiphop.p)
+
+data.other <- mydata[mydata$genre == "Other",]
+sent.other <- get_nrc_sentiment(as.character(data.other$stemmedwords))
+sent.other.n <- data.frame(topic = "Other", attitude = rep("negative", sum(sent.other[, 9])))
+sent.other.p <- data.frame(topic = "Other", attitude = rep("positive", sum(sent.other[, 10])))
+sent.other.np <- rbind(sent.other.n, sent.other.p)
+
+topic.sentiment <- rbind(sent.folk.np, sent.rb.np,sent.elec.np,sent.jazz.np,sent.indie.np,sent.country.np,sent.rock.np,sent.metal.np,sent.pop.np,sent.hiphop.np,sent.other.np)
+ggplot(topic.sentiment, aes(x = topic)) +
+  geom_bar(aes(fill = factor(attitude)), position = "fill")
+
+## finding: highest relative percentage of positive: jazz; highest relative percentage of negative: metal
+```
+### word frequency in metal and jazz, wordclouds of them
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+data("stop_words")
+word <- c("lot", "today", "months", "month", "wanna", "wouldnt", "wasnt", "ha", "na", "ooh", "da",
+        "gonna", "im", "dont", "aint", "wont", "yeah", "la", "oi", "nigga", "fuck",
+          "hey", "year", "years", "last", "past", "feel")
+stop_words <- c(stop_words$word, word)
+
+#metal
+docs_metal <- Corpus(VectorSource(data.metal))
+docs_metal <- tm_map(docs_metal, stripWhitespace)
+docs_metal<- tm_map(docs_metal, content_transformer(tolower))
+docs_metal<- tm_map(docs_metal, removeWords, stopwords("english"))
+docs_metal<- tm_map(docs_metal, removeWords, stop_words)
+docs_metal<- tm_map(docs_metal, removeWords, character(0))
+docs_metal<- tm_map(docs_metal, removePunctuation)
+dtm <- TermDocumentMatrix(docs_metal)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+#jazz
+docs_jazz <- Corpus(VectorSource(data.jazz))
+docs_jazz <- tm_map(docs_jazz, stripWhitespace)
+docs_jazz<- tm_map(docs_jazz, content_transformer(tolower))
+docs_jazz<- tm_map(docs_jazz, removeWords, stopwords("english"))
+docs_jazz<- tm_map(docs_jazz, removeWords, stop_words)
+docs_jazz<- tm_map(docs_jazz, removeWords, character(0))
+docs_jazz<- tm_map(docs_jazz, removePunctuation)
+dtm2 <- TermDocumentMatrix(docs_jazz)
+m2 <- as.matrix(dtm2)
+v2 <- sort(rowSums(m2),decreasing=TRUE)
+d2 <- data.frame(word = names(v2),freq=v2)
+head(d2, 10)
+wordcloud(words = d2$word, freq = d2$freq, min.freq = 1,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+#rock
+docs_rock <- Corpus(VectorSource(data.rock))
+docs_rock <- tm_map(docs_rock, stripWhitespace)
+docs_rock<- tm_map(docs_rock, content_transformer(tolower))
+docs_rock<- tm_map(docs_rock, removeWords, stopwords("english"))
+docs_rock<- tm_map(docs_rock, removeWords, stop_words)
+docs_rock<- tm_map(docs_rock, removeWords, character(0))
+docs_rock<- tm_map(docs_rock, removePunctuation)
+dtm3 <- TermDocumentMatrix(docs_rock)
+m3 <- as.matrix(dtm3)
+v3 <- sort(rowSums(m3),decreasing=TRUE)
+d3 <- data.frame(word = names(v3),freq=v3)
+head(d3,10)
+wordcloud(words = d3$word, freq = d3$freq, min.freq = 1,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+```{r echo=FALSE}
+hist(data.metal$year)
+hist(data.jazz$year)
+```
+```{r}
+# differences between years
+data.1970s <- mydata[mydata$year>=1970 & mydata$year<=1979,] %>% data.frame(., status = "1970s")
+data.1980s <- mydata[mydata$year>=1980 & mydata$year<=1989,] %>% data.frame(., status = "1980s")
+data.1990s <- mydata[mydata$year>=1990 & mydata$year<=1999,] %>% data.frame(., status = "1990s")
+data.2000s <- mydata[mydata$year>=2000 & mydata$year<=2009,] %>% data.frame(., status = "2000s")
+data.2010s <- mydata[mydata$year>=2010 & mydata$year<=2019,] %>% data.frame(., status = "2010s")
+data.year<-rbind(data.1970s,data.1980s,data.1990s,data.2000s,data.2010s)
+ggplot(data.year, aes(x = status)) +
+  geom_bar(aes(fill=factor(genre)), position="fill")
+
+```
