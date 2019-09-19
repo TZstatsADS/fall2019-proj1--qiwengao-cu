@@ -1,8 +1,31 @@
 ---
-title: "What's behind song lyrics?"
-output: html_notebook
+title: "Project1: Sentiments behind song lyrics"
+output:
+  html_document:
+    df_print: paged
 ---
+```{r echo=FALSE, out.width="100%", fig.align='center'}
+knitr::include_graphics("../figs/music.jpg")
+```
+<p align="right">*music image via playbuzz*</p>
 
+The first thing I will do on every morning is to open my music app and play some music to wake me up. Just like me, listening to music has become a daily routine to many people. We enjoy everything that music bring to us. Music is an important way that people used to communicate and convey their emotions. And song lyrics must be a significant element to help realize that. 
+In this project, I will use the *processed_lyric* data set, which is the processed data set of a filtered corpus of 380,000+ song lyrics from MetroLyrics, to find the sentiments behind the song lyrics. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+packages.used=c("dplyr", "ggplot2", 
+                "tm", "wordcloud2", "RColorBrewer",
+                 "syuzhet", "tidytext", "tidyverse", 
+                "reshape2", "wordcloud")
+# check packages that need to be installed.
+packages.needed=setdiff(packages.used, 
+                        intersect(installed.packages()[,1], 
+                                  packages.used))
+# install additional packages
+if(length(packages.needed)>0){
+  install.packages(packages.needed, dependencies = TRUE)
+}
+```
 ```{r echo=FALSE, message=FALSE}
 ## library packages
 library(dplyr)
@@ -16,25 +39,81 @@ library(syuzhet)
 library(reshape2)
 library(wordcloud)
 ```
-```{r echo=FALSE}
+```{r echo=FALSE,message=FALSE}
 #load the dataset
 load('../output/processed_lyrics.RData') 
 ```
-### Preparations for visualization
-```{r}
-lyrics_list <- c("Folk", "R&B", "Electronic", "Jazz", "Indie", "Country", "Rock", "Metal", "Pop", "Hip-Hop", "Other")
-time_list <- c("1970s", "1980s", "1990s", "2000s", "2010s")
-corpus <- VCorpus(VectorSource(dt_lyrics$stemmedwords))
-word_tibble <- tidy(corpus) %>%
+
+## Music of Ages
+
+To start with, for getting a general picture of the music geners, a bar chart which represents various kinds of music genres grouping by different decades is plotted. There are 11 kinds of music genres in the data set, including *Country*, *Electronic*, *Folk*, *Hip-Hop*, *Indie*, *Jazz*, *Metal*, *Pop*, *R&B*, *Rock* and *other*. The years of the songs are divided into decedes, ranging from 1970s to 2010s.
+
+```{r echo=FALSE,message=FALSE}
+# differences between years
+mydata<-dt_lyrics
+data.1970s <- mydata[mydata$year>=1970 & mydata$year<=1979,] %>% data.frame(., status = "1970s")
+data.1980s <- mydata[mydata$year>=1980 & mydata$year<=1989,] %>% data.frame(., status = "1980s")
+data.1990s <- mydata[mydata$year>=1990 & mydata$year<=1999,] %>% data.frame(., status = "1990s")
+data.2000s <- mydata[mydata$year>=2000 & mydata$year<=2009,] %>% data.frame(., status = "2000s")
+data.2010s <- mydata[mydata$year>=2010 & mydata$year<=2019,] %>% data.frame(., status = "2010s")
+data.year<-rbind(data.1970s,data.1980s,data.1990s,data.2000s,data.2010s)
+ggplot(data.year, aes(x = status)) +
+  geom_bar(aes(fill=factor(genre)), position="fill")
+
+```
+
+Here, an intuitive and interesting finding we can get from the plot is that the Rock music genre takes the highest proportion among all music genres in every decade in the lyrics data set. More specifically, the Rock music takes more than 50% in the first 4 decades, and takes close to 50% in 2010s. Because of this finding, we can say that at least in our data set, the Rock music is in an important position. 
+
+### Let's rock
+
+As mentioned above, the Rock music plays a significant role in our data set. Let's have a further research about this music type. By drawing the wordcloud of the lyrics in the rock songs with the 'wordcloud' package, we can visualize the data, and have a straightforward sense about the frequencies of the words written in Rock music lyrics.  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#wordcloud of the rock music
+mydata<-dt_lyrics
+data.rock <- mydata[mydata$genre == "Rock",]
+docs_rock <- VCorpus(VectorSource(data.rock$stemmedwords))
+word_tibble1 <- tidy(docs_rock) %>%
   select(text) %>%
   mutate(id = row_number()) %>%
   unnest_tokens(word, text)
+word_tibble1%>%
+  count(word)%>%
+  with(wordcloud(word, n, min.freq = 1,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2")))
+
+
+# docs_rock <- tm_map(docs_rock, stripWhitespace)
+# docs_rock<- tm_map(docs_rock, content_transformer(tolower))
+# docs_rock<- tm_map(docs_rock, removeWords, stopwords("english"))
+# docs_rock<- tm_map(docs_rock, removeWords, stop_words)
+# docs_rock<- tm_map(docs_rock, removeWords, character(0))
+# docs_rock<- tm_map(docs_rock, removePunctuation)
+# dtm3 <- TermDocumentMatrix(docs_rock)
+# m3 <- as.matrix(dtm3)
+# v3 <- sort(rowSums(m3),decreasing=TRUE)
+# d3 <- data.frame(word = names(v3),freq=v3)
+# # head(d3,10)
+# wordcloud(words = d3$word, freq = d3$freq, min.freq = 1,
+#           max.words=100, random.order=FALSE, rot.per=0.35, 
+#           colors=brewer.pal(8, "Dark2"))
 ```
 
-### Sentimental Analysis
-```{r echo=FALSE, echo=FALSE}
-#In this part, I used sentimental analysis to see the positive/negative sentiments involving in each kind of genres. 
-mydata<-dt_lyrics
+The wordcloud of the lyrics in Rock music shows us that words such as "love", "time", "rock", "baby", "world" and "heart" are frequently used. Other words like "sweet", "pain", "live" and "die" also appear in the wordcloud. Intuitively saying from these words, the lyrics of Rock music contain various kinds of feelings and emotions. 
+
+
+## What about other music genres?
+
+Not only Rock music, but also other music genres play a significant role in conveying emotions and feelings to the listeners. I want to know what kind of sentiments the song lyrics bring to us, and how different music genres vary between each other. In addition, I want to get the answer from the data science method instead of intuition. By conducting the sentiment analysis with the help of the "syuzhet" package, we can get the desired results.
+
+### Sentimental Analysis of song lyrics
+
+In this part, sentimental analysis is performed to see the positive and negative sentiments involving in each kind of genres.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# sentimental analysis to see the positive/negative sentiments involving in each kind of genres 
+# mydata<-dt_lyrics
 data.folk <- mydata[mydata$genre == "Folk",]
 sent.folk <- get_nrc_sentiment(as.character(data.folk$stemmedwords))
 sent.folk.n <- data.frame(topic = "Folk", attitude = rep("negative", sum(sent.folk[, 9])))
@@ -58,20 +137,7 @@ sent.jazz <- get_nrc_sentiment(as.character(data.jazz$stemmedwords))
 sent.jazz.n <- data.frame(topic = "Jazz", attitude = rep("negative", sum(sent.jazz[, 9])))
 sent.jazz.p <- data.frame(topic = "Jazz", attitude = rep("positive", sum(sent.jazz[, 10])))
 sent.jazz.np <- rbind(sent.jazz.n, sent.jazz.p)
-#################################
-#jazz joy anger
-# sent.jazz.an <- data.frame(topic = "Jazz", attitude = rep("anger", sum(sent.jazz[, 1] >= 1)))
-# sent.jazz.j <- data.frame(topic = "Jazz", attitude = rep("joy", sum(sent.jazz[, 5] >= 1)))
-# sent.jazz.aj <- rbind(sent.jazz.an, sent.jazz.j)
-# 
-# #metal joy anger
-# sent.metal.an <- data.frame(topic = "Metal", attitude = rep("anger", sum(sent.metal[, 1] >= 1)))
-# sent.metal.j <- data.frame(topic = "Metal", attitude = rep("joy", sum(sent.metal[, 5] >= 1)))
-# sent.metal.aj <- rbind(sent.metal.an, sent.metal.j)
-# topic.sentiment2<-rbind(sent.jazz.aj,sent.metal.aj)
-# ggplot(topic.sentiment2, aes(x = topic)) +
-#   geom_bar(aes(fill = factor(attitude)), position = "fill")
-##################################
+
 data.indie <- mydata[mydata$genre == "Indie",]
 sent.indie <- get_nrc_sentiment(as.character(data.indie$stemmedwords))
 sent.indie.n <- data.frame(topic = "Indie", attitude = rep("negative", sum(sent.indie[, 9])))
@@ -84,7 +150,7 @@ sent.country.n <- data.frame(topic = "Country", attitude = rep("negative", sum(s
 sent.country.p <- data.frame(topic = "Country", attitude = rep("positive", sum(sent.country[, 10])))
 sent.country.np <- rbind(sent.country.n, sent.country.p)
 
-data.rock <- mydata[mydata$genre == "Rock",]
+# data.rock <- mydata[mydata$genre == "Rock",]
 sent.rock <- get_nrc_sentiment(as.character(data.rock$stemmedwords))
 sent.rock.n <- data.frame(topic = "Rock", attitude = rep("negative", sum(sent.rock[, 9])))
 sent.rock.p <- data.frame(topic = "Rock", attitude = rep("positive", sum(sent.rock[, 10])))
@@ -118,81 +184,120 @@ topic.sentiment <- rbind(sent.folk.np, sent.rb.np,sent.elec.np,sent.jazz.np,sent
 ggplot(topic.sentiment, aes(x = topic)) +
   geom_bar(aes(fill = factor(attitude)), position = "fill")
 
-## finding: highest relative percentage of positive: jazz; highest relative percentage of negative: metal
 ```
-### word frequency in metal and jazz, wordclouds of them
-```{r warning=FALSE, echo=FALSE, message=FALSE}
-data("stop_words")
-word <- c("lot", "today", "months", "month", "wanna", "wouldnt", "wasnt", "ha", "na", "ooh", "da",
-        "gonna", "im", "dont", "aint", "wont", "yeah", "la", "oi", "nigga", "fuck",
-          "hey", "year", "years", "last", "past", "feel")
-stop_words <- c(stop_words$word, word)
 
-#metal
-docs_metal <- Corpus(VectorSource(data.metal))
-docs_metal <- tm_map(docs_metal, stripWhitespace)
-docs_metal<- tm_map(docs_metal, content_transformer(tolower))
-docs_metal<- tm_map(docs_metal, removeWords, stopwords("english"))
-docs_metal<- tm_map(docs_metal, removeWords, stop_words)
-docs_metal<- tm_map(docs_metal, removeWords, character(0))
-docs_metal<- tm_map(docs_metal, removePunctuation)
-dtm <- TermDocumentMatrix(docs_metal)
-m <- as.matrix(dtm)
-v <- sort(rowSums(m),decreasing=TRUE)
-d <- data.frame(word = names(v),freq=v)
-head(d, 10)
-wordcloud(words = d$word, freq = d$freq, min.freq = 1,
-          max.words=100, random.order=FALSE, rot.per=0.35, 
-          colors=brewer.pal(8, "Dark2"))
+What we can find here is that the highest relative proportion of positive sentient is from the lyrics of jazz music, while highest relative proportion of negative sentiment is from the lyrics  of metal music. Driven by this finding, I'm going to have a further comparison between these two music genres. 
+Another notice from the plot is related to the Rock music which we have talked about in the previous part. We can see that the positive and negative attitudes revealed in the lyrics of Rock music take almost the same proportion. 
+
+## Is there a huge difference between Jazz and Metal music?
+
+As mentioned in the last section, I want to compare the lyrics of the Jazz and Metal music becaue they reflected the largest percentage of positive or negative attitudes in their lyrics. 
+
+To clearly know their differences in terms of involved emotions, a sentiment analysis is conducted here.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+jazz_bar <-  colSums(sent.jazz)
+jazz_sum <-  data.frame(emotion = names(jazz_bar), jazz = jazz_bar / sum(jazz_bar))
+jazz_sum$emotion <-  factor(jazz_sum$emotion, levels = jazz_sum$emotion[order(jazz_sum$jazz, decreasing = F)])
+
+metal_bar <-  colSums(sent.metal)
+metal_sum <-  data.frame(emotion = names(metal_bar), metal = metal_bar / sum(metal_bar))
+metal_sum$emotion <-  factor(metal_sum$emotion, levels = metal_sum$emotion[order(metal_sum$metal, decreasing = F)])
+
+jazzmetal.df <- merge(jazz_sum, metal_sum, by = "emotion")
+jazzmetal.sentiment <- melt(jazzmetal.df, id.vars='emotion')
+
+ggplot(jazzmetal.sentiment, aes(x = emotion, y = value, fill = factor(variable))) +
+  geom_bar(stat='identity', position='dodge') +
+  coord_flip()
+
+```
+
+If we simply divide the categories of emotions here into "good" and "bad" ones, where "good" ones contain *positive*, *joy*, *anticipation*, *trust* and *surprise*, and "bad" ones contain *negative*, *sadness*, *fear*, *anger* and *disgust*, we can see that Jazz music lyrics always have a higher value on the "good" emotions but a lower value on the "bad" ones, and Metal music lyrics vice versa. Hence, to answer the question about the difference of these two music genres, we could say they do have a huge difference in terms of the emotions reflected in their lyrics. 
+
+### Wording in Jazz and Metal lyrics
+
+To get more detailed information about the lyrics of Jazz and Metal music, wordclouds are drawn here to see the frequently used words in these two music genres.
+
+### wordcloud of Jazz music
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+# data("stop_words")
+# word <- c("lot", "today", "months", "month", "wanna", "wouldnt", "wasnt", "ha", "na", "ooh", "da",
+#         "gonna", "im", "dont", "aint", "wont", "yeah", "la", "oi", "nigga", "fuck",
+#           "hey", "year", "years", "last", "past", "feel")
+# stop_words <- c(stop_words$word, word)
 
 #jazz
-docs_jazz <- Corpus(VectorSource(data.jazz))
-docs_jazz <- tm_map(docs_jazz, stripWhitespace)
-docs_jazz<- tm_map(docs_jazz, content_transformer(tolower))
-docs_jazz<- tm_map(docs_jazz, removeWords, stopwords("english"))
-docs_jazz<- tm_map(docs_jazz, removeWords, stop_words)
-docs_jazz<- tm_map(docs_jazz, removeWords, character(0))
-docs_jazz<- tm_map(docs_jazz, removePunctuation)
-dtm2 <- TermDocumentMatrix(docs_jazz)
-m2 <- as.matrix(dtm2)
-v2 <- sort(rowSums(m2),decreasing=TRUE)
-d2 <- data.frame(word = names(v2),freq=v2)
-head(d2, 10)
-wordcloud(words = d2$word, freq = d2$freq, min.freq = 1,
+docs_jazz <- VCorpus(VectorSource(data.jazz$stemmedwords))
+word_tibble2 <- tidy(docs_jazz) %>%
+  select(text) %>%
+  mutate(id = row_number()) %>%
+  unnest_tokens(word, text)
+word_tibble2%>%
+  count(word)%>%
+  with(wordcloud(word, n, min.freq = 1,
           max.words=100, random.order=FALSE, rot.per=0.35, 
-          colors=brewer.pal(8, "Dark2"))
+          colors=brewer.pal(8, "Dark2")))
 
-#rock
-docs_rock <- Corpus(VectorSource(data.rock))
-docs_rock <- tm_map(docs_rock, stripWhitespace)
-docs_rock<- tm_map(docs_rock, content_transformer(tolower))
-docs_rock<- tm_map(docs_rock, removeWords, stopwords("english"))
-docs_rock<- tm_map(docs_rock, removeWords, stop_words)
-docs_rock<- tm_map(docs_rock, removeWords, character(0))
-docs_rock<- tm_map(docs_rock, removePunctuation)
-dtm3 <- TermDocumentMatrix(docs_rock)
-m3 <- as.matrix(dtm3)
-v3 <- sort(rowSums(m3),decreasing=TRUE)
-d3 <- data.frame(word = names(v3),freq=v3)
-head(d3,10)
-wordcloud(words = d3$word, freq = d3$freq, min.freq = 1,
+# docs_jazz <- tm_map(docs_jazz, stripWhitespace)
+# docs_jazz<- tm_map(docs_jazz, content_transformer(tolower))
+# docs_jazz<- tm_map(docs_jazz, removeWords, stopwords("english"))
+# docs_jazz<- tm_map(docs_jazz, removeWords, stop_words)
+# docs_jazz<- tm_map(docs_jazz, removeWords, character(0))
+# docs_jazz<- tm_map(docs_jazz, removePunctuation)
+# dtm2 <- TermDocumentMatrix(docs_jazz)
+# m2 <- as.matrix(dtm2)
+# v2 <- sort(rowSums(m2),decreasing=TRUE)
+# d2 <- data.frame(word = names(v2),freq=v2)
+# # head(d2, 10)
+# wordcloud(words = d2$word, freq = d2$freq, min.freq = 1,
+#           max.words=100, random.order=FALSE, rot.per=0.35, 
+#           colors=brewer.pal(8, "Dark2"))
+
+```
+
+The most frequent words appearing in Jazz songs are "love", "jazz", "heart" and "baby". We can also see words like "happy", "dear" and "dream" in the wordcloud. The wordcloud of jazz music agrees with our analysis before, which claims that the Jazz songs contain a great portion of positive attitudes and good emotions.
+Therefore, if someone wants to get some warm and happy feelings from music, I will definitely recommend Jazz music to him/her. 
+
+### wordcloud of Metal music
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+#metal
+docs_metal <- VCorpus(VectorSource(data.metal$stemmedwords))
+word_tibble3 <- tidy(docs_metal) %>%
+  select(text) %>%
+  mutate(id = row_number()) %>%
+  unnest_tokens(word, text)
+word_tibble3%>%
+  count(word)%>%
+  with(wordcloud(word, n, min.freq = 1,
           max.words=100, random.order=FALSE, rot.per=0.35, 
-          colors=brewer.pal(8, "Dark2"))
+          colors=brewer.pal(8, "Dark2")))
+
+# docs_metal <- tm_map(docs_metal, stripWhitespace)
+# docs_metal<- tm_map(docs_metal, content_transformer(tolower))
+# docs_metal<- tm_map(docs_metal, removeWords, stopwords("english"))
+# docs_metal<- tm_map(docs_metal, removeWords, stop_words)
+# docs_metal<- tm_map(docs_metal, removeWords, character(0))
+# docs_metal<- tm_map(docs_metal, removePunctuation)
+# dtm <- TermDocumentMatrix(docs_metal)
+# m <- as.matrix(dtm)
+# v <- sort(rowSums(m),decreasing=TRUE)
+# d <- data.frame(word = names(v),freq=v)
+# # head(d, 10)
+# wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+#           max.words=100, random.order=FALSE, rot.per=0.35, 
+#           colors=brewer.pal(8, "Dark2"))
 ```
 
-```{r echo=FALSE}
-hist(data.metal$year)
-hist(data.jazz$year)
-```
-```{r}
-# differences between years
-data.1970s <- mydata[mydata$year>=1970 & mydata$year<=1979,] %>% data.frame(., status = "1970s")
-data.1980s <- mydata[mydata$year>=1980 & mydata$year<=1989,] %>% data.frame(., status = "1980s")
-data.1990s <- mydata[mydata$year>=1990 & mydata$year<=1999,] %>% data.frame(., status = "1990s")
-data.2000s <- mydata[mydata$year>=2000 & mydata$year<=2009,] %>% data.frame(., status = "2000s")
-data.2010s <- mydata[mydata$year>=2010 & mydata$year<=2019,] %>% data.frame(., status = "2010s")
-data.year<-rbind(data.1970s,data.1980s,data.1990s,data.2000s,data.2010s)
-ggplot(data.year, aes(x = status)) +
-  geom_bar(aes(fill=factor(genre)), position="fill")
+The most frequent words appearing in Metal songs are "time", "life", and "metal". We see words like "blood", "dead" and "pain" in the wordcloud as well. The wordcloud of Metal music also agrees with our analysis before, which claims that the Metal songs contain a great portion of negative attitudes and bad emotions. 
+In contrast with Jazz music scenario, if someone wants to feel some dark and evil emotions, I will recommend the Metal music.
 
-```
+## Summary
+
+In this project, I analyze the lyrics data to see the sentiments conveyed in different music genres. I mainly focus on three genres: Rock,Jazz and Metal. Among them, I also make a comparison between the Jazz and Metal music lyrics. My conclusions are as following:  
+ * Compared with other music genres, Rock music takes a large proportion in the data set. The weights of positive and negative attitudes reflected in the lyrics of Rock music are similar to each other.\
+ * The musis genre which contains the most negative emotions in its lyrics is Metal music, while the one which contains the most positive emotions in its lyrics is Jazz music. \
+ * The Jazz music and Metal music are almost "opposite" styles after comparing their song lyrics. While the lyrics in Jazz music bring us sweet and warm emotions, the one in Metal music bring us dark and negative feelings. 
+
